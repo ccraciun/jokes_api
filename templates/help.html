@@ -1,0 +1,11 @@
+<html>
+    <head></head>
+    <H1>Welcome to Chitter</H1>
+{% block body %}
+<ul>
+{% for path, doc in data.items() %}
+    <li>{{ path }} : {{ doc.replace("\n", "<br>") | safe }} </li><br>
+{% endfor %}
+</ul>
+{% endblock %}
+</html>
