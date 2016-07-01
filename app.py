@@ -5,6 +5,8 @@ import time
 import redis
 import random
 import hashlib
+from collections import defaultdict
+
 from flask import Flask, request, render_template, render_template_string, make_response, json, jsonify, abort
 
 app = Flask('pumper')
@@ -16,16 +18,15 @@ APPNAME = "chitter"
 THROTTLE_OPTION = "{}_throttle_thresh".format(APPNAME)
 THROTTLE_HNAME = "{}_thr".format(APPNAME)
 THROTTLE_RPM = 10
-THROTTLE_HEADER = "x-throttle-exempt"
-THROTTLE_EXEMPT = "__sekrit_key"
+THROTTLE_OPTION_REQUESTS = "{}_throttle_requests"
+THROTTLE_OPTION_INTERVAL = "{}_throttle_interval"
+THROTTLE_EXEMPT_HEADER = "x-full-throttle"
 
 CRASH_OPTION = "{}_crash_thresh".format(APPNAME)
-CRASH_HEADER = "x-crash-exempt"
-CRASH_EXEMPT = "crash_override"
+CRASH_EXEMPT_HEADER = "x-wedding-crashers"
 
 OVERLOAD_OPTION = "{}_overload_thresh".format(APPNAME)
-OVERLOAD_HEADER = "x-overload-exempt"
-OVERLOAD_EXEMPT = "save_me_jeebus"
+OVERLOAD_EXEMPT_HEADER = "x-overload"
 
 CHITTER_H = "{}_chit".format(APPNAME)
 CHITTER_RECENT_S = "{}_recent_chit".format(APPNAME)
@@ -99,10 +100,15 @@ def post_chit():
 @app.route('/api/help')
 def help():
     """ Print available api functions """
-    func_list = {}
+    func_list = defaultdict(dict)
     for rule in app.url_map.iter_rules():
+        #import pdb; pdb.set_trace()
         if rule.endpoint != 'static':
-            func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__.strip()
+            func_list[rule.endpoint][rule.rule] = {
+                    'doc': app.view_functions[rule.endpoint].__doc__.strip(),
+                    'methods': rule.methods - {'HEAD', 'OPTIONS'},
+                    }
+            # func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__.strip()
     return render_template("help.html", data=func_list)
 
 
@@ -126,8 +132,11 @@ def bad_request(err):
 
 @app.before_request
 def before_request():
+    def exempt():
+        return request.endpoint in {'help'}
+
     def throttle():
-        if request.headers.get(THROTTLE_HEADER) == THROTTLE_EXEMPT:
+        if request.headers.get(THROTTLE_EXEMPT_HEADER):
             return
         throttle_key = "{}_{}".format(request.remote_addr, int(time.time() / 60))
         if r.hincrby(THROTTLE_HNAME, throttle_key, 1) > THROTTLE_RPM:
@@ -135,21 +144,22 @@ def before_request():
 
     def random_overload():
         thresh = r.get(OVERLOAD_OPTION)
-        if not thresh or request.headers.get(OVERLOAD_HEADER) == CRASH_EXEMPT:
+        if not thresh or request.headers.get(OVERLOAD_EXEMPT_HEADER):
             return
         if random.random() < float(thresh):
             abort(503)
 
     def random_crash():
         thresh = r.get(CRASH_OPTION)
-        if not thresh or request.headers.get(CRASH_HEADER) == CRASH_EXEMPT:
+        if not thresh or request.headers.get(CRASH_EXEMPT_HEADER):
             return
         if random.random() < float(thresh):
             abort(500)
 
-    random_crash()
-    random_overload()
-    throttle()
+    if not exempt():
+        random_crash()
+        random_overload()
+        throttle()
 
 
 if __name__ == '__main__':
