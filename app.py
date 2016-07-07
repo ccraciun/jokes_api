@@ -42,10 +42,12 @@ def joke(id=None):
     The returned json will be of the format:
         {"message":"", "status": 200, value: {"categories": categories, "id": id, "author": id, "joke": "text", "pic": "pic_url"}}
     """
-    # import pdb; pdb.set_trace()
     if not id:
         id = random.choice(jokes.keys())
-    id = int(id)
+    try:
+        id = int(id)
+    except ValueError:
+        abort(400)
     if id not in jokes:
         abort(404)
     return jsonify(message="",
@@ -147,7 +149,7 @@ def bad_request(err):
             message=str(err),
             status=400,
             data={}
-            ), 400
+            ), 200
 
 
 @app.before_request

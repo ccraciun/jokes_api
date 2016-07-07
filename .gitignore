@@ -58,3 +58,6 @@ target/
 
 .project
 .pydevproject
+
+# RDB dumps
+dump.rdb
