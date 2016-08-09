@@ -15,22 +15,24 @@ jokes = json.load(open('jokes.json'))['value']
 jokes = {joke['id']: joke for joke in jokes}
 
 APPNAME = "chitter"
-THROTTLE_HNAME = "{}_thr".format(APPNAME)
+
+THROTTLE_HNAME           = "{}_thr".format(APPNAME)
 THROTTLE_OPTION_REQUESTS = "{}_throttle_requests".format(APPNAME)
 THROTTLE_OPTION_INTERVAL = "{}_throttle_interval".format(APPNAME)
-THROTTLE_EXEMPT_HEADER = "x-full-throttle"
+THROTTLE_EXEMPT_HEADER   = "x-full-throttle"
 
-CRASH_OPTION = "{}_crash_thresh".format(APPNAME)
+CRASH_OPTION        = "{}_crash_thresh".format(APPNAME)
 CRASH_EXEMPT_HEADER = "x-wedding-crashers"
 
-OVERLOAD_OPTION = "{}_overload_thresh".format(APPNAME)
+OVERLOAD_OPTION        = "{}_overload_thresh".format(APPNAME)
 OVERLOAD_EXEMPT_HEADER = "x-overload"
 
-SLOWDOWN_OPTION = "{}_slowdown_thresh".format(APPNAME)
+SLOWDOWN_OPTION        = "{}_slowdown_thresh".format(APPNAME)
 SLOWDOWN_EXEMPT_HEADER = "x-ludicrous-speed"
-SLOWDOWN_TIME = "{}_slowdown_max_time".format(APPNAME)
+SLOWDOWN_TIME          = "{}_slowdown_max_time".format(APPNAME)
+SLOWDOWN_BASE_TIME     = "{}_slowdown_base_time".format(APPNAME)
 
-CHITTER_H = "{}_chit".format(APPNAME)
+CHITTER_H        = "{}_chit".format(APPNAME)
 CHITTER_RECENT_S = "{}_recent_chit".format(APPNAME)
 
 
@@ -77,13 +79,13 @@ def joke(id=None):
 #     Get some recent chit ids
 #     """
 #     pass
-# 
-# 
+#
+#
 # @app.route('/api/c/<id>')
 # def get_chit(id):
 #     """
 #     Get the chit with the given id.
-# 
+#
 #     The returned json will be of the format:
 #         {"message":"", "status": 200, data: {"date": date, "id": id, "author": id, "text": "text", "pic": "pic_url"}}
 #     """
@@ -96,8 +98,8 @@ def joke(id=None):
 #     return jsonify(message="",
 #             status=200,
 #             data={'chitID': id, 'authorID': "tester", 'text': "testtest"})
-# 
-# 
+#
+#
 # @app.route('/api/c', methods=['POST'])
 # def post_chit():
 #     """
@@ -149,7 +151,7 @@ def bad_request(err):
             message=str(err),
             status=400,
             data={}
-            ), 200
+            ), 400
 
 
 @app.before_request
@@ -173,9 +175,11 @@ def before_request():
         if not thresh or request.headers.get(SLOWDOWN_EXEMPT_HEADER):
             return
         thresh = float(thresh)
+        base_wait = float(r.get(SLOWDOWN_BASE_TIME))
+        time.sleep(base_wait)
         max_wait = float(r.get(SLOWDOWN_TIME))
         if random.random() < float(thresh):
-            time.sleep(0.25 + random.random() * max_wait)
+            time.sleep(random.random() * max_wait)
 
     def random_overload():
         thresh = r.get(OVERLOAD_OPTION)
