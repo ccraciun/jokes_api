@@ -12,7 +12,7 @@ from flask import Flask, request, render_template, render_template_string, make_
 app = Flask('pumper')
 r = redis.StrictRedis(host="localhost", port=6379, db=0)
 jokes = json.load(open('jokes.json'))['value']
-jokes = {joke['id']: joke for joke in jokes}
+jokes = {joke['id']: joke for joke in jokes if 'explicit' not in joke['categories']}
 
 APPNAME = "chitter"
 
@@ -35,6 +35,10 @@ SLOWDOWN_BASE_TIME     = "{}_slowdown_base_time".format(APPNAME)
 CHITTER_H        = "{}_chit".format(APPNAME)
 CHITTER_RECENT_S = "{}_recent_chit".format(APPNAME)
 
+@app.after_request
+def add_header(resp):
+    resp.headers['Access-Control-Allow-Origin'] = resp.headers.get('Access-Control-Allow-Origin', '*')
+    return resp
 
 @app.route('/api/joke/<id>')
 @app.route('/api/joke')
