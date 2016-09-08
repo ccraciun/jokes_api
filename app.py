@@ -35,10 +35,27 @@ SLOWDOWN_BASE_TIME     = "{}_slowdown_base_time".format(APPNAME)
 CHITTER_H        = "{}_chit".format(APPNAME)
 CHITTER_RECENT_S = "{}_recent_chit".format(APPNAME)
 
+
 @app.after_request
 def add_header(resp):
     resp.headers['Access-Control-Allow-Origin'] = resp.headers.get('Access-Control-Allow-Origin', '*')
     return resp
+
+
+@app.route('/')
+@app.route('/api/help')
+def help():
+    """ Print available api functions """
+    func_list = defaultdict(dict)
+    for rule in app.url_map.iter_rules():
+        if rule.endpoint != 'static':
+            func_list[rule.endpoint][rule.rule] = {
+                    'doc': app.view_functions[rule.endpoint].__doc__.strip(),
+                    'methods': list(rule.methods - {'HEAD', 'OPTIONS'}),
+                    }
+            # func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__.strip()
+    return render_template("help.html", data=func_list)
+
 
 @app.route('/api/joke/<id>')
 @app.route('/api/joke')
@@ -123,21 +140,6 @@ def joke(id=None):
 #             status=200,
 #             data={"id": id}
 #             ), 200
-
-
-@app.route('/')
-@app.route('/api/help')
-def help():
-    """ Print available api functions """
-    func_list = defaultdict(dict)
-    for rule in app.url_map.iter_rules():
-        if rule.endpoint != 'static':
-            func_list[rule.endpoint][rule.rule] = {
-                    'doc': app.view_functions[rule.endpoint].__doc__.strip(),
-                    'methods': rule.methods - {'HEAD', 'OPTIONS'},
-                    }
-            # func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__.strip()
-    return render_template("help.html", data=func_list)
 
 
 @app.errorhandler(429)
