@@ -1,10 +1,13 @@
-.PHONY: test clean
+.PHONY: env test clean purge repl run
 
 VENV_PYTHON ?= python
 VENV_NAME ?= env
 
 repl: $(VENV_NAME)
 	. $(VENV_NAME)/bin/activate; ipython
+
+run: $(VENV_NAME)
+	. $(VENV_NAME)/bin/activate; pip install -e .; jokes
 
 test: $(VENV_NAME)
 	. $(VENV_NAME)/bin/activate; python setup.py test

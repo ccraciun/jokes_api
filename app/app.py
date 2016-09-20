@@ -5,11 +5,13 @@ import time
 import redis
 import random
 import hashlib
+
 from collections import defaultdict
+from functools import wraps
 
 from flask import Flask, request, render_template, render_template_string, make_response, json, jsonify, abort
 
-app = Flask('pumper')
+app = Flask('jokes')
 r = redis.StrictRedis(host="localhost", port=6379, db=0)
 jokes = json.load(open('jokes.json'))['value']
 jokes = {joke['id']: joke for joke in jokes if 'explicit' not in joke['categories']}
@@ -31,15 +33,6 @@ SLOWDOWN_OPTION        = "{}_slowdown_thresh".format(APPNAME)
 SLOWDOWN_EXEMPT_HEADER = "x-ludicrous-speed"
 SLOWDOWN_TIME          = "{}_slowdown_max_time".format(APPNAME)
 SLOWDOWN_BASE_TIME     = "{}_slowdown_base_time".format(APPNAME)
-
-CHITTER_H        = "{}_chit".format(APPNAME)
-CHITTER_RECENT_S = "{}_recent_chit".format(APPNAME)
-
-
-@app.after_request
-def add_header(resp):
-    resp.headers['Access-Control-Allow-Origin'] = resp.headers.get('Access-Control-Allow-Origin', '*')
-    return resp
 
 
 @app.route('/')
@@ -78,68 +71,10 @@ def joke(id=None):
             value={'categories': jokes[id]['categories'], 'joke': jokes[id]['joke'], 'id': id, 'author': 'Chuck Norris'})
 
 
-# @app.route('/api/u/<id>')
-# def user(id):
-#     """
-#     Get some data about a user.
-#     """
-#     pass
-#
-#
-# @app.route('/api/c/random')
-# def rand_chit():
-#     """
-#     Get a random recent chit.
-#     """
-#     pass
-#
-#
-# @app.route('/api/c')
-# def chits():
-#     """
-#     Get some recent chit ids
-#     """
-#     pass
-#
-#
-# @app.route('/api/c/<id>')
-# def get_chit(id):
-#     """
-#     Get the chit with the given id.
-#
-#     The returned json will be of the format:
-#         {"message":"", "status": 200, data: {"date": date, "id": id, "author": id, "text": "text", "pic": "pic_url"}}
-#     """
-#     try:
-#         id = int(id)
-#     except ValueError as e:
-#         abort(400)
-# #    if id not in jokes:
-# #        abort(404)
-#     return jsonify(message="",
-#             status=200,
-#             data={'chitID': id, 'authorID': "tester", 'text': "testtest"})
-#
-#
-# @app.route('/api/c', methods=['POST'])
-# def post_chit():
-#     """
-#     Create a new chit
-#     """
-#     data = {'date': time.now(),
-#             'author': request.args['aid'],
-#             'text': request.args['text'],
-#             'pic': request.args.get('pic'),
-#             }
-#     id = hashlib.md5(json.dumps(data)).hexdigest()
-#     data['id'] = id
-#     r.hset(CHITTER_H, id, json.dumps(data))
-#     r.sadd(CHITTER_RECENT_S, json.dumps(data))
-#     return jsonify(
-#             message="Ok",
-#             status=200,
-#             data={"id": id}
-#             ), 200
+@app.after_request
+def add_header(resp):
+    resp.headers['Access-Control-Allow-Origin'] = resp.headers.get('Access-Control-Allow-Origin', '*')
+    return resp
 
 
 @app.errorhandler(429)
@@ -165,39 +100,35 @@ def before_request():
     def exempt():
         return request.endpoint in {'help'}
 
+    @unless_header(THROTTLE_EXEMPT_HEADER)
     def throttle():
-        throttle_reqs = float(r.get(THROTTLE_OPTION_REQUESTS))
-        throttle_interval = int(r.get(THROTTLE_OPTION_INTERVAL))
-        if request.headers.get(THROTTLE_EXEMPT_HEADER):
-            return
+        throttle_reqs = float(r.get(THROTTLE_OPTION_REQUESTS) or 1000)
+        throttle_interval = int(r.get(THROTTLE_OPTION_INTERVAL) or 60)
         throttle_key = "{}_{}_{}".format(request.remote_addr,
                 throttle_interval,
                 int(time.time() / throttle_interval))
         if r.hincrby(THROTTLE_HNAME, throttle_key, 1) > throttle_reqs:
             abort(429)
 
+    @unless_header(SLOWDOWN_EXEMPT_HEADER)
     def random_slowdown():
-        thresh = r.get(SLOWDOWN_OPTION)
-        if not thresh or request.headers.get(SLOWDOWN_EXEMPT_HEADER):
-            return
-        thresh = float(thresh)
-        base_wait = float(r.get(SLOWDOWN_BASE_TIME))
+        base_wait = float(r.get(SLOWDOWN_BASE_TIME) or 0)
         time.sleep(base_wait)
-        max_wait = float(r.get(SLOWDOWN_TIME))
-        if random.random() < float(thresh):
-            time.sleep(random.random() * max_wait)
 
+        thresh = float(r.get(SLOWDOWN_OPTION) or 0)
+        if random.random() < thresh:
+            max_wait = float(r.get(SLOWDOWN_TIME))
+            time.sleep(random.random() * max_wait - base_wait)
+
+    @unless_header(OVERLOAD_EXEMPT_HEADER)
     def random_overload():
-        thresh = r.get(OVERLOAD_OPTION)
-        if not thresh or request.headers.get(OVERLOAD_EXEMPT_HEADER):
-            return
-        if random.random() < float(thresh):
+        thresh = float(r.get(OVERLOAD_OPTION) or 0)
+        if random.random() < thresh:
             abort(503)
 
+    @unless_header(CRASH_EXEMPT_HEADER)
     def random_crash():
-        thresh = r.get(CRASH_OPTION)
-        if not thresh or request.headers.get(CRASH_EXEMPT_HEADER):
-            return
+        thresh = float(r.get(CRASH_OPTION) or 0)
         if random.random() < float(thresh):
             abort(500)
 
@@ -208,5 +139,21 @@ def before_request():
         random_slowdown()
 
 
-if __name__ == '__main__':
+def unless_header(*header_names):
+    def decorator(f):
+        @wraps(f)
+        def decorated_func(*args, **kwargs):
+            if any(request.headers.get(header_name) for header_name in header_names):
+                return
+            return f(*args, **kwargs)
+        return decorated_func
+    return decorator
+
+
+def main():
     app.run(host='0.0.0.0', debug=True)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
