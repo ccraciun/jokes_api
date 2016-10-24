@@ -19,7 +19,7 @@ clean:
 purge: clean
 	rm -rf $(VENV_NAME) dist build *.egg-info
 
-env: $(VENV_NAME)/bin/activate
+$(VENV_NAME): $(VENV_NAME)/bin/activate
 
 $(VENV_NAME)/bin/activate: setup.py requirements.txt
 	test -d $(VENV_NAME) || virtualenv -p $(VENV_PYTHON) --no-site-packages $(VENV_NAME)
