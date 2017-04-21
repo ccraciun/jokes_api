@@ -1,6 +1,6 @@
 .PHONY: env test clean purge repl run
 
-VENV_PYTHON ?= python
+VENV_PYTHON ?= python2
 VENV_NAME ?= env
 
 repl: $(VENV_NAME)
