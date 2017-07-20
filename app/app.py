@@ -79,11 +79,13 @@ def add_header(resp):
 
 @app.errorhandler(429)
 def too_many_requests(err):
-    return jsonify(
+    resp = jsonify(
             message="Slow your roll, homie",
             status=429,
             data={}
-            ), 429
+            )
+    resp.headers['Retry-After'] = r.get(THROTTLE_OPTION_INTERVAL) or 60
+    return resp, 429
 
 
 @app.errorhandler(400)
