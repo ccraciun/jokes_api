@@ -3,19 +3,19 @@
     <H1>API</H1>
 {% block body %}
 <table>
-    {% for endpoint, ruleMap in data.items() %}
-        <tr>
-            <td colspan=2><b>{{ endpoint }}</b></td>
-        </tr>
-        {% for path, rule in ruleMap.items() %}
-            <tr>
-                <td>{{ rule.methods }}</td><td>{{ path }}</td>
-            </tr>
-        {% endfor %}
-        <tr>
-            <td colspan=2>{{ first(ruleMap.values()).doc.replace("\n", "<br>") | safe }}</td> <br>
-        </tr>
+{% for endpoint, ruleMap in data.items() %}
+    <tr>
+        <td colspan=2><b>{{ endpoint }}</b></td>
+    </tr>
+    {% for path, rule in ruleMap.items() %}
+    <tr>
+    <td>{{ rule.methods }}</td><td>{{ path }}</td>
+    </tr>
     {% endfor %}
+    <tr>
+    <td colspan=2>{{ ruleMap.values()[0].doc.replace("\n", "<br>") | safe }}</td> <br>
+    </tr>
+{% endfor %}
 </table>
 {% endblock %}
 </html>
