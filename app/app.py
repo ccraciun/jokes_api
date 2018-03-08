@@ -1,10 +1,11 @@
 from gevent import monkey
 monkey.patch_all()
 
-import time
-import redis
-import random
 import hashlib
+import os
+import random
+import redis
+import time
 
 from collections import defaultdict
 from functools import wraps
@@ -46,7 +47,6 @@ def help():
                     'doc': app.view_functions[rule.endpoint].__doc__.strip(),
                     'methods': list(rule.methods - {'HEAD', 'OPTIONS'}),
                     }
-            # func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__.strip()
     return render_template("help.html", data=func_list)
 
 
@@ -104,8 +104,8 @@ def before_request():
 
     @unless_header(THROTTLE_EXEMPT_HEADER)
     def throttle():
-        throttle_reqs = float(r.get(THROTTLE_OPTION_REQUESTS) or 1000)
-        throttle_interval = int(r.get(THROTTLE_OPTION_INTERVAL) or 60)
+        throttle_reqs = float(r.get(THROTTLE_OPTION_REQUESTS) or 5)
+        throttle_interval = int(r.get(THROTTLE_OPTION_INTERVAL) or 30)
         throttle_key = "{}_{}_{}".format(request.remote_addr,
                 throttle_interval,
                 int(time.time() / throttle_interval))
@@ -114,23 +114,23 @@ def before_request():
 
     @unless_header(SLOWDOWN_EXEMPT_HEADER)
     def random_slowdown():
-        base_wait = float(r.get(SLOWDOWN_BASE_TIME) or 0)
+        base_wait = float(r.get(SLOWDOWN_BASE_TIME) or 0.25)
         time.sleep(base_wait)
 
-        thresh = float(r.get(SLOWDOWN_OPTION) or 0)
+        thresh = float(r.get(SLOWDOWN_OPTION) or 0.4)
         if random.random() < thresh:
             max_wait = float(r.get(SLOWDOWN_TIME))
             time.sleep(random.random() * max_wait - base_wait)
 
     @unless_header(OVERLOAD_EXEMPT_HEADER)
     def random_overload():
-        thresh = float(r.get(OVERLOAD_OPTION) or 0)
+        thresh = float(r.get(OVERLOAD_OPTION) or 0.1)
         if random.random() < thresh:
             abort(503)
 
     @unless_header(CRASH_EXEMPT_HEADER)
     def random_crash():
-        thresh = float(r.get(CRASH_OPTION) or 0)
+        thresh = float(r.get(CRASH_OPTION) or 0.1)
         if random.random() < float(thresh):
             abort(500)
 
@@ -153,7 +153,7 @@ def unless_header(*header_names):
 
 
 def main():
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
     return 0
 
 
