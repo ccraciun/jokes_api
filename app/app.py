@@ -84,7 +84,7 @@ def too_many_requests(err):
             status=429,
             data={}
             )
-    resp.headers['Retry-After'] = r.get(THROTTLE_OPTION_INTERVAL) or 60
+    resp.headers['Retry-After'] = r.get(THROTTLE_OPTION_INTERVAL) or 30
     return resp, 429
 
 
