@@ -104,9 +104,11 @@ def before_request():
 
     @unless_header(THROTTLE_EXEMPT_HEADER)
     def throttle():
+        forwarded_for = request.headers.getlist("X-Forwarded-For")
+        remote_addr = forwarded_for[-1] if len(forwarded_for) > 0 else request.remote_addr
         throttle_reqs = float(r.get(THROTTLE_OPTION_REQUESTS) or 5)
         throttle_interval = int(r.get(THROTTLE_OPTION_INTERVAL) or 30)
-        throttle_key = "{}_{}_{}".format(request.remote_addr,
+        throttle_key = "{}_{}_{}".format(remote_addr,
                 throttle_interval,
                 int(time.time() / throttle_interval))
         if r.hincrby(THROTTLE_HNAME, throttle_key, 1) > throttle_reqs:
