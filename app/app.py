@@ -119,7 +119,7 @@ def before_request():
 
         thresh = float(r.get(SLOWDOWN_OPTION) or 0.4)
         if random.random() < thresh:
-            max_wait = float(r.get(SLOWDOWN_TIME))
+            max_wait = float(r.get(SLOWDOWN_TIME) or 2.0)
             time.sleep(random.random() * max_wait - base_wait)
 
     @unless_header(OVERLOAD_EXEMPT_HEADER)
