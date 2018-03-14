@@ -13,7 +13,7 @@ from functools import wraps
 from flask import Flask, request, render_template, render_template_string, make_response, json, jsonify, abort
 
 app = Flask('jokes')
-r = redis.StrictRedis(host="localhost", port=6379, db=0)
+r = redis.StrictRedis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
 jokes = json.load(open('jokes.json'))['value']
 jokes = {joke['id']: joke for joke in jokes if 'explicit' not in joke['categories']}
 
